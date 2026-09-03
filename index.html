@@ -600,7 +600,10 @@ function renderAdminQueue(){
         <div class="meta">${d.method} · ${fmtTime(d.createdAt)}</div>
       </div>
       ${isPending
-        ? `<button class="mark-btn" data-complete="${d.id}">Mark complete</button>`
+        ? `<div style="display:flex; align-items:center; gap:14px;">
+             <span class="back-link" data-cancel="${d.id}" style="margin:0; font-size:12.5px;">Didn't go through</span>
+             <button class="mark-btn" data-complete="${d.id}">Mark complete</button>
+           </div>`
         : `<span class="status-pill completed">Completed</span>`
       }
     </div>
@@ -799,6 +802,26 @@ function attachHandlers(){
         console.error('Discord webhook failed:', result.discord.reason);
         showToast('Marked complete, but Discord failed: ' + result.discord.reason, 6000);
       }
+      await loadDonations();
+      render();
+    };
+  });
+
+  // cancel a pending donation that didn't go through
+  document.querySelectorAll('[data-cancel]').forEach(el=>{
+    el.onclick = async () => {
+      const id = el.dataset.cancel;
+      const confirmed = window.confirm('Remove this pending donation? Use this if it never actually went through.');
+      if(!confirmed) return;
+      const originalText = el.textContent;
+      el.textContent = 'Removing…';
+      const result = await apiPost('/api/delete-donation', {password: state.adminPassword, id});
+      if(!result.ok){
+        showToast('Could not remove it: ' + (result.error || 'unknown error'), 5000);
+        el.textContent = originalText;
+        return;
+      }
+      showToast('Removed.');
       await loadDonations();
       render();
     };
